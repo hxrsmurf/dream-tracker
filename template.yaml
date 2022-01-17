@@ -1,0 +1,44 @@
+Transform: 'AWS::Serverless-2016-10-31'
+Description: This template deploys an API Gateway with POST Destination to a Lambda function which writes to DynamoDB and sends an e-mail.
+Parameters:
+  Email:
+    Type: String
+Outputs:
+  API:
+    Value: !Sub 'https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com'
+  Stack:
+    Value: !Sub ${AWS::StackName}
+  Table:
+    Value: !Ref DynamoDB
+  Topic:
+    Value: !Ref Topic
+Resources:
+  Lambda:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: index.handler
+      Runtime: python3.7
+      CodeUri: python
+      Timeout: 5
+      Events:
+        PostAPI:
+          Type: HttpApi
+          Properties:
+            Path: /
+            Method: POST
+      Policies:
+        - CloudFormationDescribeStacksPolicy: {}
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DynamoDB
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt Topic.TopicName
+  DynamoDB:
+    Type: 'AWS::Serverless::SimpleTable'
+  Topic:
+    Type: 'AWS::SNS::Topic'
+  Subscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: !Ref Email
+      Protocol: email
+      TopicArn: !Ref Topic
